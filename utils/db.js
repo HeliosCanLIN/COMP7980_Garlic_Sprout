@@ -10,7 +10,7 @@ if (!process.env.MONGODB_URI) {
 // Connect to MongoDB
 async function connectToDB() {
     const client = await MongoClient.connect(process.env.MONGODB_URI);
-    const db = client.db('bookingsDB');
+    const db = client.db('GroupProjectDB');
     db.client = client;
     return db;
 }
