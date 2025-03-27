@@ -6,6 +6,7 @@ var logger = require('morgan');
 
 var indexRouter = require('./routes/index');
 var usersRouter = require('./routes/users');
+var testRouter = require('./routes/test');
 
 var app = express();
 
@@ -21,7 +22,19 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 app.use('/', indexRouter);
 app.use('/users', usersRouter);
+app.use('/test',testRouter);
 
+var jwt = require('jsonwebtoken');
+var passport = require('passport');
+var BearerStrategy = require('passport-http-bearer').Strategy;
+passport.use(new BearerStrategy(
+    function (token, done) {
+      jwt.verify(token, process.env.TOKEN_SECRET, function (err, decoded) {
+        if (err) { return done(err); }
+        return done(null, decoded, { scope: "all" });
+      });
+    }
+));
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {
