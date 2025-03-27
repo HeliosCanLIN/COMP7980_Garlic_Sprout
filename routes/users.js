@@ -56,11 +56,15 @@ router.post('/login/', async function (req, res) {
 router.post('/changePassword/', async function (req, res) {
     const db = await connectToDB();
     try {
+        console.log(req.body);
         var username = req.body.username;
         var password = req.body.password;
-        let result = await db.collection("garlic_user").findOne({username: username});
+        var id=req.body.id;
+        let result = await db.collection("garlic_user").findOne({ _id: new ObjectId(id) });
+        console.log("11");
         if (result != null) {
-           let updateResult= await db.collection("garlic_user").updateOne({username: username}, {$set: {password: password}});
+            console.log("22");
+           let updateResult= await db.collection("garlic_user").updateOne({_id:new ObjectId(id)}, {$set: {password: password}});
            if(updateResult!=null){
                res.json({updateResult});
            }else{
