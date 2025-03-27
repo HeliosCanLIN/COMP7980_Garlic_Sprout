@@ -42,7 +42,7 @@ router.post('/login/', async function (req, res) {
         let result = await db.collection("garlic_user").findOne({username: username, password: password});
         if (result != null) {
             const token = generateToken(result);
-            res.json({token: token, username: username});
+            res.json({token: token, username: username,id:result._id});
         } else {
             res.status(400).json({message: "用户名或密码错误"})
         }
