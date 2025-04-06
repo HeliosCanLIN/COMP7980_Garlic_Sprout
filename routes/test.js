@@ -7,7 +7,7 @@ var passport = require('passport');
 router.use(passport.authenticate('bearer', { session: false }));
 
 
-router.get('/', function(req, res, next) {
+router.get('/auth', function(req, res, next) {
     res.json('respond with a resource');
 });
 
