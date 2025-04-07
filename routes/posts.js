@@ -1,10 +1,10 @@
 var express = require('express');
 var router = express.Router();
-
 const {generateToken} = require('../utils/auth');
-const {connectToDB, ObjectId} = require("../utils/db");
+const { connectToDB, ObjectId} = require("../utils/db");
+var passport = require('passport');
 
-
+router.use(passport.authenticate('bearer', { session: false }));
 
 // 获取帖子详情
 router.get('/:postId', async (req, res) => {
@@ -161,6 +161,48 @@ router.post('/getLists/', async function (req, res) {
         });
 
         res.json(await post.toArray());
+    }catch (err){res.status(400).json({ message: err.message });}
+    finally {
+        await db.client.close();
+    }
+})
+
+router.post('/deletePost/:id', async function (req, res) {
+    const db = await connectToDB();
+    try {
+        const { id } = req.params;
+        let result = await db.collection("post").findOne({_id: new ObjectId(id)});
+        if (result == null) {
+            res.status(404).json({message: "No such post"});
+        } else {
+            let deleteResult = await db.collection("post").delete({_id: new ObjectId(id)});
+            if (deleteResult > 0) {
+                res.status(404).json({message: "delete failed. Please try again later"});
+            } else {
+                res.json(deleteResult);
+            }
+        }
+    }catch (err){res.status(400).json({ message: err.message });}
+    finally {
+        await db.client.close();
+    }
+})
+
+router.post('/deleteComments/:id', async function (req, res) {
+    const db = await connectToDB();
+    try {
+        const { id } = req.params;
+        let result = await db.collection("comments").findOne({_id: new ObjectId(id)});
+        if (result == null) {
+            res.status(404).json({message: "No such comments"});
+        } else {
+            let deleteResult = await db.collection("comments").delete({_id: new ObjectId(id)});
+            if (deleteResult > 0) {
+                res.status(404).json({message: "delete failed. Please try again later"});
+            } else {
+                res.json(deleteResult);
+            }
+        }
     }catch (err){res.status(400).json({ message: err.message });}
     finally {
         await db.client.close();
