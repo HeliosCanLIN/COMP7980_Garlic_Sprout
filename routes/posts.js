@@ -153,6 +153,20 @@ router.post('/:postId/comments', async (req, res) => {
     }
 });
 
+router.post('/getLists/', async function (req, res) {
+    const db = await connectToDB();
+    try {
+        const post = await db.collection('posts').find({
+            Section: req.body.section
+        });
+
+        res.json(await post.toArray());
+    }catch (err){res.status(400).json({ message: err.message });}
+    finally {
+        await db.client.close();
+    }
+})
+
 // 保持相同的辅助函数
 function formatRelativeTime(date) {
     const now = new Date();
