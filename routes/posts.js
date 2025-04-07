@@ -5,39 +5,31 @@ const {generateToken} = require('../utils/auth');
 const {connectToDB, ObjectId} = require("../utils/db");
 
 
-router.post('/CreatePost', async (req, res) => {
+router.post('/createpost', async (req, res) => {
     const db = await connectToDB();
     try {
-        const {Title, Content, Section, UserID} = req.body;
+        const {title, section, content, UserID} = req.body;
 
-        if (!Title || !Title.trim()) {
+        if (!title || !title.trim()) {
             return res.status(400).json({error: '标题不能为空'});
         }
 
-        if (!Content || !Content.trim()) {
+        if (!section || !section.trim()) {
             return res.status(400).json({error: '内容不能为空'});
         }
 
         const newPost = {
-            PostID: new ObjectId(),
-            UserID: new ObjectId(UserID), // 实际应通过认证获取
-            CreatedAt: new Date(),
-            Title: Title,
-            Content: Content,
-            Section: Section,
-            likes: 0,
+            PostID: new ObjectId(), AuthorID: new ObjectId(UserID), // 实际应通过认证获取
+            CreatedAt: new Date(), Title: title, Content: content, Section: section, likes: 0, Views: 0, Comments: 0,
         };
 
-        const result = await db.collection('posts').insertOne(newComment);
+        const result = await db.collection('posts').insertOne(newPost);
         const insertedPost = {
-            ...newPost,
-            _id: result.insertedId
+            ...newPost, _id: result.insertedId
         };
 
         res.status(201).json({
-            ...insertedPost,
-            time: formatRelativeTime(insertedComment.createdAt),
-            id: insertedComment._id.toString()
+            ...insertedPost, time: formatRelativeTime(insertedPost.CreatedAt), id: insertedPost._id.toString()
         });
     } catch (error) {
         console.error('Error:', error);
@@ -52,16 +44,27 @@ router.get('/:postId', async (req, res) => {
         const {postId} = req.params;
 
         const post = await db.collection('posts').findOne({
-            PostID: parseInt(postId, 10)
+            PostID: new ObjectId(postId),
         });
+
+
+        const user = await db.collection('garlic_user').findOne({
+            _id: post.AuthorID
+        });
+
 
         if (!post) {
             return res.json({error: '帖子未找到'});
         }
 
+        const responseData = {
+            ...post, Author: user ? user.username : null // 添加作者名字段
+        };
 
-        res.json(post);
+
+        res.json(responseData);
     } catch (error) {
+        console.error('Error:', error);
         res.status(500).json({error: '服务器错误'});
     }
 });
@@ -74,14 +77,10 @@ router.get('/:postId/comments', async (req, res) => {
         const page = parseInt(req.query.page) || 1;
         const pageSize = Math.min(parseInt(req.query.pageSize) || 10, 100); // 添加分页大小限制
 
-        // 验证postId为数字
-        if (isNaN(postId)) {
-            return res.status(400).json({error: '无效的帖子ID'});
-        }
 
         // 查询帖子是否存在
         const postExists = await db.collection('posts').findOne({
-            PostID: parseInt(postId)
+            PostID: new ObjectId(postId)
         });
 
         if (!postExists) {
@@ -92,7 +91,7 @@ router.get('/:postId/comments', async (req, res) => {
 
         // 获取分页评论
         const comments = await db.collection('comments')
-            .find({PostID: parseInt(postId)})
+            .find({PostID: new ObjectId(postId)})
             .sort({CreatedAt: -1})
             .skip(skip)
             .limit(pageSize)
@@ -100,7 +99,7 @@ router.get('/:postId/comments', async (req, res) => {
 
         // 获取评论总数
         const total = await db.collection('comments')
-            .countDocuments({PostID: parseInt(postId)});
+            .countDocuments({PostID: new ObjectId(postId)});
 
         // 提取并验证UserID
         const allUserIds = comments.flatMap(c => [c.UserID, c.ReplyToUserID])
@@ -119,8 +118,7 @@ router.get('/:postId/comments', async (req, res) => {
         // 批量查询有效用户信息
         const users = await db.collection('garlic_user')
             .find({
-                _id: {$in: validUserIds},
-                username: {$exists: true} // 确保包含用户名字段
+                _id: {$in: validUserIds}, username: {$exists: true} // 确保包含用户名字段
             })
             .project({username: 1})
             .toArray();
@@ -135,14 +133,10 @@ router.get('/:postId/comments', async (req, res) => {
         const processedComments = comments.map(comment => {
             // 处理无效用户ID
             const isInvalidUser = invalidUsers.has(comment.UserID);
-            const userName = isInvalidUser
-                ? '无效用户'
-                : userMap[comment.UserID] || '未知用户';
+            const userName = isInvalidUser ? '无效用户' : userMap[comment.UserID] || '未知用户';
 
             const isInvalidReplyUser = invalidUsers.has(comment.ReplyToUserID);
-            const replyToUserName = isInvalidReplyUser
-                ? '无效用户'
-                : userMap[comment.ReplyToUserID] || '未知用户';
+            const replyToUserName = isInvalidReplyUser ? '无效用户' : userMap[comment.ReplyToUserID] || '未知用户';
 
             return {
                 ...comment,
@@ -154,10 +148,7 @@ router.get('/:postId/comments', async (req, res) => {
         });
 
         res.json({
-            data: processedComments,
-            total,
-            currentPage: page,
-            totalPages: Math.ceil(total / pageSize)
+            data: processedComments, total, currentPage: page, totalPages: Math.ceil(total / pageSize)
         });
     } catch (error) {
         console.error('Error:', error);
@@ -170,7 +161,6 @@ router.post('/:postId/comments', async (req, res) => {
     const db = await connectToDB();
     try {
         const {postId} = req.params;
-        const postIdInt = parseInt(postId, 10);
         const {Content, replyTo, replyToUserID, UserID} = req.body;
 
         if (!Content || !Content.trim()) {
@@ -182,7 +172,7 @@ router.post('/:postId/comments', async (req, res) => {
         // }
 
         const post = await db.collection('posts').findOne({
-            PostID: postIdInt
+            PostID: new ObjectId(postId),
         });
 
         if (!post) {
@@ -196,9 +186,7 @@ router.post('/:postId/comments', async (req, res) => {
             // }
 
             parentComment = await db.collection('comments').findOne({
-                // _id: new ObjectId(replyTo),
-                PostID: postIdInt,
-                // CommentID: commentIdInt
+                PostID: new ObjectId(postId),
                 CommentID: new ObjectId(replyTo)
             });
 
@@ -209,7 +197,7 @@ router.post('/:postId/comments', async (req, res) => {
 
         const newComment = {
             CommentID: new ObjectId(),
-            PostID: postIdInt,
+            PostID: new ObjectId(postId),
             UserID: new ObjectId(UserID), // 实际应通过认证获取
             CreatedAt: new Date(),
             ReplyTo: parentComment ? new ObjectId(replyTo) : null,
@@ -220,20 +208,14 @@ router.post('/:postId/comments', async (req, res) => {
 
         const result = await db.collection('comments').insertOne(newComment);
         const insertedComment = {
-            ...newComment,
-            _id: result.insertedId
+            ...newComment, _id: result.insertedId
         };
 
         // 更新帖子评论数
-        await db.collection('posts').updateOne(
-            {PostID: postIdInt},
-            {$inc: {Comments: 1}}
-        );
+        await db.collection('posts').updateOne({PostID: new ObjectId(postId) }, {$inc: {Comments: 1}});
 
         res.status(201).json({
-            ...insertedComment,
-            time: formatRelativeTime(insertedComment.createdAt),
-            id: insertedComment._id.toString()
+            ...insertedComment, time: formatRelativeTime(insertedComment.createdAt), id: insertedComment._id.toString()
         });
     } catch (error) {
         console.error('Error:', error);
