@@ -6,8 +6,10 @@ var logger = require('morgan');
 
 var indexRouter = require('./routes/index');
 var usersRouter = require('./routes/users');
+var userProtectedRouter = require('./routes/users-protected');
 var postsRouter = require('./routes/posts');
 var testRouter = require('./routes/test');
+var likeRouter = require('./routes/like');
 
 var app = express();
 
@@ -23,8 +25,10 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 app.use('/', indexRouter);
 app.use('/users', usersRouter);
+app.use('/users', userProtectedRouter);
 app.use('/test',testRouter);
 app.use('/posts', postsRouter);
+app.use('/like',likeRouter);
 
 var jwt = require('jsonwebtoken');
 var passport = require('passport');
