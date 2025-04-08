@@ -10,6 +10,7 @@ router.use(passport.authenticate('bearer', {session: false}));
 router.post('/add/', async function (req, res) {
     const db = await connectToDB();
     try {
+        console.log(req.body);
         req.body.UserID= new ObjectId(req.body.UserID)
         req.body.PostID= new ObjectId(req.body.PostID)
         req.body.CommentID= new ObjectId(req.body.CommentID)
