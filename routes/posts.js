@@ -349,6 +349,9 @@ router.post('/getLists/', async function (req, res) {
             filter.Section = req.body.section;
         }
 
+        if (req.body.keyword) {
+            filter.Title = {$regex:req.body.keyword};
+        }
         const post = await db.collection('posts')
             .find(filter)
             .sort({Views: -1});
