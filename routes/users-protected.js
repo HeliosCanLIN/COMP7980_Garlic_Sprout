@@ -57,7 +57,7 @@ router.post('/userStat/', async function (req, res) {
         console.log(id);
         let postCount= await db.collection("posts").countDocuments({"AuthorID":new ObjectId(id)});
         let commentCount= await db.collection("comments").countDocuments({"UserID":new ObjectId(id)});
-        let likeCount= await db.collection("like").countDocuments({"UserID":id});
+        let likeCount= await db.collection("like").countDocuments({"UserID":ObjectId(id)});
 
         let temPostLiked = await db.collection("posts").aggregate([
             { $match: {"UserID":new ObjectId(id)} },

@@ -48,15 +48,18 @@ router.get('/:postId', async (req, res) => {
             PostID: new ObjectId(postId),
         });
 
+        if (!post) {
+            return res.status(404).json({error: 'post not found'});
+        }
+
+        if (post.Deleted) {
+            return res.status(403).json({error: 'post deleted'});
+        }
 
         const user = await db.collection('garlic_user').findOne({
             _id: post.AuthorID
         });
 
-
-        if (!post) {
-            return res.status(404).json({error: 'post not found'});
-        }
 
         if (post.Deleted) {
             return res.status(403).json({error: 'post deleted'});
@@ -86,24 +89,24 @@ router.get('/:postId', async (req, res) => {
 router.post('/delete', async (req, res) => {
     const db = await connectToDB();
     try {
-        const { PostID } = req.body;
+        const {PostID} = req.body;
 
         // 校验必要参数
         if (!PostID) {
-            return res.status(400).json({ error: '缺少帖子ID参数' });
+            return res.status(400).json({error: '缺少帖子ID参数'});
         }
 
         // 校验ObjectID格式
         if (!ObjectId.isValid(PostID)) {
-            return res.status(400).json({ error: '非法的帖子ID格式' });
+            return res.status(400).json({error: '非法的帖子ID格式'});
         }
 
         const postObjectId = new ObjectId(PostID);
 
         // 查询目标帖子
-        const post = await db.collection('posts').findOne({ PostID: postObjectId });
+        const post = await db.collection('posts').findOne({PostID: postObjectId});
         if (!post) {
-            return res.status(404).json({ error: '帖子不存在' });
+            return res.status(404).json({error: '帖子不存在'});
         }
 
         // 获取当前登录用户ID（通过Bearer认证中间件获取）
@@ -111,30 +114,30 @@ router.post('/delete', async (req, res) => {
 
         // 鉴权：比对帖子作者ID和当前用户ID
         if (!post.AuthorID.equals(currentUserID)) {
-            return res.status(403).json({ error: '无权限执行此操作' });
+            return res.status(403).json({error: '无权限执行此操作'});
         }
 
         // 执行逻辑删除
         const result = await db.collection('posts').updateOne(
-            { PostID: postObjectId },
-            { $set: { Deleted: true, DeletedAt: new Date() } }
+            {PostID: postObjectId},
+            {$set: {Deleted: true, DeletedAt: new Date()}}
         );
 
         if (result.modifiedCount === 0) {
-            return res.status(500).json({ error: '帖子删除失败' });
+            return res.status(500).json({error: '帖子删除失败'});
         }
 
-        res.status(200).json({ message: '帖子已删除' });
+        res.status(200).json({message: '帖子已删除'});
     } catch (error) {
         console.error('删除帖子错误:', error);
-        res.status(500).json({ error: '服务器内部错误' });
+        res.status(500).json({error: '服务器内部错误'});
     }
 });
 // 获取评论列表
 router.get('/:postId/comments', async (req, res) => {
     const db = await connectToDB();
     try {
-        const { postId } = req.params;
+        const {postId} = req.params;
         const page = parseInt(req.query.page) || 1;
         const pageSize = Math.min(parseInt(req.query.pageSize) || 10, 100); // 添加分页大小限制
 
@@ -144,22 +147,22 @@ router.get('/:postId/comments', async (req, res) => {
         });
 
         if (!postExists) {
-            return res.status(404).json({ error: '帖子未找到' });
+            return res.status(404).json({error: '帖子未找到'});
         }
 
         const skip = (page - 1) * pageSize;
 
         // 获取分页评论
         const comments = await db.collection('comments')
-            .find({ PostID: new ObjectId(postId) })
-            .sort({ CreatedAt: -1 })
+            .find({PostID: new ObjectId(postId)})
+            .sort({CreatedAt: -1})
             .skip(skip)
             .limit(pageSize)
             .toArray();
 
         // 获取评论总数
         const total = await db.collection('comments')
-            .countDocuments({ PostID: new ObjectId(postId) });
+            .countDocuments({PostID: new ObjectId(postId)});
 
         // 提取并验证UserID
         const allUserIds = comments.flatMap(c => [c.UserID, c.ReplyToUserID])
@@ -178,9 +181,9 @@ router.get('/:postId/comments', async (req, res) => {
         // 批量查询有效用户信息
         const users = await db.collection('garlic_user')
             .find({
-                _id: { $in: validUserIds }, username: { $exists: true } // 确保包含用户名字段
+                _id: {$in: validUserIds}, username: {$exists: true} // 确保包含用户名字段
             })
-            .project({ username: 1 })
+            .project({username: 1})
             .toArray();
 
         // 创建映射表（使用_id的字符串形式作为键）
@@ -202,7 +205,7 @@ router.get('/:postId/comments', async (req, res) => {
             likeCounts = await db.collection('like').aggregate([
                 {
                     $match: {
-                        $or: commentIds.map(({ PostID, CommentID }) => ({
+                        $or: commentIds.map(({PostID, CommentID}) => ({
                             PostID,
                             CommentID,
                             Type: "Comment"
@@ -211,8 +214,8 @@ router.get('/:postId/comments', async (req, res) => {
                 },
                 {
                     $group: {
-                        _id: { PostID: "$PostID", CommentID: "$CommentID" },
-                        count: { $sum: 1 }
+                        _id: {PostID: "$PostID", CommentID: "$CommentID"},
+                        count: {$sum: 1}
                     }
                 }
             ]).toArray();
@@ -220,7 +223,7 @@ router.get('/:postId/comments', async (req, res) => {
 
         // 创建点赞数映射表
         const likeCountMap = likeCounts.reduce((map, item) => {
-            const { PostID, CommentID } = item._id;
+            const {PostID, CommentID} = item._id;
             map[CommentID] = item.count;
             return map;
         }, {});
@@ -249,7 +252,7 @@ router.get('/:postId/comments', async (req, res) => {
         });
     } catch (error) {
         console.error('Error:', error);
-        res.status(500).json({ error: '服务器错误' });
+        res.status(500).json({error: '服务器错误'});
     }
 });
 
@@ -313,12 +316,20 @@ router.post('/:postId/comments', async (req, res) => {
     }
 });
 
-router.post('/getLists/', async function (req, res) {
+router.post('/getHotLists', async function (req, res) {
     const db = await connectToDB();
     try {
-        const post = await db.collection('posts').find({
-            Section: req.body.section
-        });
+        const filter = {
+            Deleted: {$ne: true}
+        };
+        if (req.body.section) {
+            filter.Section = req.body.section;
+        }
+
+        const post = await db.collection('posts')
+            .find(filter)
+            .sort({Views: -1})
+            .limit(5);
 
         res.json(await post.toArray());
     } catch (err) {
@@ -326,7 +337,29 @@ router.post('/getLists/', async function (req, res) {
     } finally {
         await db.client.close();
     }
-})
+});
+
+router.post('/getLists/', async function (req, res) {
+    const db = await connectToDB();
+    try {
+        const filter = {
+            Deleted: {$ne: true}
+        };
+        if (req.body.section) {
+            filter.Section = req.body.section;
+        }
+
+        const post = await db.collection('posts')
+            .find(filter)
+            .sort({Views: -1});
+
+        res.json(await post.toArray());
+    } catch (err) {
+        res.status(400).json({message: err.message});
+    } finally {
+        await db.client.close();
+    }
+});
 
 router.post('/deletePost/:id', async function (req, res) {
     const db = await connectToDB();
