@@ -372,7 +372,7 @@ router.post('/deletePost/:id', async function (req, res) {
         if (result == null) {
             res.status(404).json({message: "No such post"});
         } else {
-            let deleteResult = await db.collection("post").delete({_id: new ObjectId(id)});
+            let deleteResult = await db.collection("post").deleteMany({_id: new ObjectId(id)});
             if (deleteResult > 0) {
                 res.status(404).json({message: "delete failed. Please try again later"});
             } else {
@@ -394,7 +394,7 @@ router.post('/deleteComments/:id', async function (req, res) {
         if (result == null) {
             res.status(404).json({message: "No such comments"});
         } else {
-            let deleteResult = await db.collection("comments").delete({_id: new ObjectId(id)});
+            let deleteResult = await db.collection("comments").deleteMany({_id: new ObjectId(id)});
             if (deleteResult > 0) {
                 res.status(404).json({message: "delete failed. Please try again later"});
             } else {

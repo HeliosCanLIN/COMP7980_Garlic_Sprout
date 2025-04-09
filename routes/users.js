@@ -44,7 +44,7 @@ router.post('/login/', async function (req, res) {
             const token = generateToken(result);
             res.json({token: token, username: username,id:result._id});
         } else {
-            res.status(400).json({message: "用户名或密码错误"})
+            res.status(400).json({message: "Wrong username or password"})
         }
     } catch (err) {
         res.status(400).json({message: err.message});
